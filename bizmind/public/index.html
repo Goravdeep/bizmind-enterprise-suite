@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BizMind Enterprise Suite - AI-Powered Business Management Dashboard</title>
+    <meta name="description" content="Enterprise-grade business management with Microsoft Foundry AI reasoning agents. Track income, expenses, stock, and get intelligent insights.">
+    <meta name="keywords" content="business management, AI agents, Microsoft Foundry, inventory management, expense tracking, profit analysis">
+    <meta name="author" content="BizMind Enterprise">
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">
+            <h2>🏢 BizMind</h2>
+            <p>Enterprise Suite</p>
+        </div>
+        <div class="nav-menu">
+            <a href="/" class="nav-item active">
+                <span class="nav-icon">📊</span>
+                <span>Dashboard</span>
+            </a>
+            <a href="/warehouse" class="nav-item">
+                <span class="nav-icon">🏭</span>
+                <span>Warehouse</span>
+            </a>
+            <a href="/transactions" class="nav-item">
+                <span class="nav-icon">💰</span>
+                <span>Transactions</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div style="margin-bottom: 24px;">
+            <h1 style="font-size: 28px; color: #1F2937;">Dashboard</h1>
+            <p style="color: #6B7280; margin-top: 8px;">Real-time business intelligence and AI insights</p>
+        </div>
+
+        <!-- Quick AI Chat Input -->
+        <div class="card" style="margin-bottom: 24px; background: linear-gradient(135deg, #0078D4 0%, #00A4EF 100%); color: white;">
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <span style="font-size: 32px;">🤖</span>
+                <div style="flex: 1;">
+                    <input type="text" id="quickAIInput" placeholder="Ask AI anything... Try: 'Add expense 500 for cleaning' or 'Show low stock items'" 
+                           style="width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 14px;"
+                           onkeypress="if(event.key==='Enter') quickAICommand()">
+                </div>
+                <button class="btn" style="background: white; color: #0078D4;" onclick="quickAICommand()">Send</button>
+                <button class="btn" style="background: rgba(255,255,255,0.2); color: white;" onclick="startVoiceQuickAI()">🎤</button>
+            </div>
+        </div>
+
+        <!-- Dashboard Cards -->
+        <div class="dashboard-cards">
+            <div class="card card-income">
+                <div class="card-title">💰 Total Income (Last 30 Days)</div>
+                <div class="card-value" id="totalIncome">₹0</div>
+                <div style="margin-top: 12px; font-size: 13px; color: #10B981;">↑ +12.5% from last month</div>
+            </div>
+            <div class="card card-expense">
+                <div class="card-title">📉 Total Expenses (Last 30 Days)</div>
+                <div class="card-value" id="totalExpense">₹0</div>
+                <div style="margin-top: 12px; font-size: 13px; color: #EF4444;">↓ -3.2% from last month</div>
+            </div>
+            <div class="card card-profit">
+                <div class="card-title">📈 Net Profit (Last 30 Days)</div>
+                <div class="card-value" id="totalProfit">₹0</div>
+                <div style="margin-top: 12px; font-size: 13px; color: #0078D4;">AI: Healthy margins</div>
+            </div>
+        </div>
+
+        <!-- Low Stock Alerts -->
+        <div class="card" style="margin-bottom: 24px;">
+            <div class="card-title" style="font-size: 16px;">⚠️ Low Stock Alerts</div>
+            <div id="lowStockAlerts">
+                <div class="loading"></div>
+            </div>
+            <button class="btn btn-secondary" style="margin-top: 12px;" onclick="sendLowStockAlert()">📧 Email Alert to Admin</button>
+        </div>
+
+        <!-- Chart and Recent Transactions -->
+        <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 24px;">
+            <div class="chart-container">
+                <h3 style="margin-bottom: 16px;">Weekly Profit Trend</h3>
+                <canvas id="profitChart" style="max-height: 300px;"></canvas>
+            </div>
+            
+            <div class="table-container">
+                <h3 style="padding: 16px; margin: 0; border-bottom: 1px solid #E5E7EB;">Recent Transactions</h3>
+                <div style="max-height: 350px; overflow-y: auto;">
+                    <table>
+                        <thead>
+                            <tr><th>Date</th><th>Type</th><th>Description</th><th>Amount</th></tr>
+                        </thead>
+                        <tbody id="recentTransactions"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Email Controls -->
+        <div class="card" style="margin-top: 24px;">
+            <h3 style="margin-bottom: 16px;">📧 Email Notifications</h3>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="sendTestEmail()">Send Test Email</button>
+                <button class="btn btn-primary" onclick="sendWeeklySummary()">Send Weekly Summary</button>
+                <button class="btn btn-secondary" onclick="checkAndSendLowStock()">Check & Alert Low Stock</button>
+            </div>
+            <div id="emailStatus" style="margin-top: 12px; font-size: 13px; color: #6B7280;"></div>
+        </div>
+    </div>
+
+    <script src="/js/shared.js"></script>
+    <script>
+        let profitChart = null;
+
+        async function loadDashboard() {
+            try {
+                const response = await fetch('/api/dashboard/data');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const d = data.data;
+                    document.getElementById('totalIncome').innerHTML = formatCurrency(d.totalIncome);
+                    document.getElementById('totalExpense').innerHTML = formatCurrency(d.totalExpense);
+                    document.getElementById('totalProfit').innerHTML = formatCurrency(d.totalProfit);
+                    
+                    // Low stock alerts
+                    const lowStockDiv = document.getElementById('lowStockAlerts');
+                    if (d.lowStockItems && d.lowStockItems.length > 0) {
+                        lowStockDiv.innerHTML = d.lowStockItems.map(item => `
+                            <div class="alert-low-stock ${item.quantity < 5 ? 'alert-critical' : ''}">
+                                <strong>${item.name}</strong>: ${item.quantity} units left 
+                                (Reorder at ${item.reorder_level})
+                                ${item.quantity < 5 ? '⚠️ CRITICAL - Immediate action required!' : '⚠️ Needs reordering'}
+                            </div>
+                        `).join('');
+                    } else {
+                        lowStockDiv.innerHTML = '<div style="padding: 12px; background: #D1FAE5; border-radius: 8px;">✅ All stock levels are healthy</div>';
+                    }
+                    
+                    // Recent transactions
+                    const tbody = document.getElementById('recentTransactions');
+                    tbody.innerHTML = d.recentTransactions.map(t => `
+                        <tr>
+                            <td>${formatDate(t.date)}</td>
+                            <td><span style="padding: 4px 8px; border-radius: 4px; background: ${t.type === 'income' ? '#D1FAE5' : '#FEE2E2'}; font-size: 12px;">${t.type}</span></td>
+                            <td>${t.description}</td>
+                            <td style="color: ${t.type === 'income' ? '#10B981' : '#EF4444'}">${formatCurrency(t.amount)}</td>
+                        </tr>
+                    `).join('');
+                    
+                    // Chart
+                    if (profitChart) profitChart.destroy();
+                    const ctx = document.getElementById('profitChart').getContext('2d');
+                    profitChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: d.weeklyProfit.map(w => `Week ${w.week}`),
+                            datasets: [{
+                                label: 'Profit',
+                                data: d.weeklyProfit.map(w => w.income - w.expense),
+                                borderColor: '#0078D4',
+                                backgroundColor: 'rgba(0, 120, 212, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: {
+                                legend: { position: 'top' }
+                            }
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Dashboard load error:', error);
+                showNotification('Failed to load dashboard data', 'error');
+            }
+        }
+
+        async function quickAICommand() {
+            const input = document.getElementById('quickAIInput');
+            const message = input.value.trim();
+            if (!message) return;
+            
+            showNotification('🤖 Processing your command...', 'info');
+            
+            try {
+                const response = await fetch('/api/ai/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message, sessionId: Date.now().toString() })
+                });
+                
+                const data = await response.json();
+                
+                if (data.needsConfirmation) {
+                    const confirmed = confirm(data.message + '\n\nClick OK to confirm, Cancel to abort');
+                    if (confirmed) {
+                        const confirmResponse = await fetch('/api/ai/chat', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ message, confirmed: true, sessionId: Date.now().toString() })
+                        });
+                        const confirmData = await confirmResponse.json();
+                        showNotification(confirmData.message, 'success');
+                        loadDashboard();
+                    } else {
+                        showNotification('Operation cancelled', 'info');
+                    }
+                } else {
+                    showNotification(data.message, data.success ? 'success' : 'error');
+                    if (data.success) loadDashboard();
+                }
+                
+                input.value = '';
+            } catch (error) {
+                showNotification('AI command failed', 'error');
+            }
+        }
+
+        function startVoiceQuickAI() {
+            if (!('webkitSpeechRecognition' in window)) {
+                showNotification('Voice input not supported', 'error');
+                return;
+            }
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'hi-IN';
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('quickAIInput').value = transcript;
+                quickAICommand();
+            };
+            recognition.start();
+        }
+
+        async function sendTestEmail() {
+            try {
+                const response = await fetch('/api/dashboard/test-email', { method: 'POST' });
+                const data = await response.json();
+                document.getElementById('emailStatus').innerHTML = data.success ? '✅ Test email sent successfully!' : '❌ Failed to send email';
+                showNotification(data.success ? 'Test email sent!' : 'Email failed', data.success ? 'success' : 'error');
+                setTimeout(() => document.getElementById('emailStatus').innerHTML = '', 3000);
+            } catch (error) {
+                showNotification('Email error', 'error');
+            }
+        }
+
+        async function sendWeeklySummary() {
+            try {
+                const response = await fetch('/api/dashboard/send-weekly-summary', { method: 'POST' });
+                const data = await response.json();
+                showNotification(data.success ? 'Weekly summary sent!' : 'Failed to send', data.success ? 'success' : 'error');
+            } catch (error) {
+                showNotification('Failed to send weekly summary', 'error');
+            }
+        }
+
+        async function checkAndSendLowStock() {
+            try {
+                const response = await fetch('/api/dashboard/check-low-stock', { method: 'POST' });
+                const data = await response.json();
+                showNotification(data.success ? 'Low stock check completed and alerts sent' : 'Check failed', data.success ? 'success' : 'error');
+                loadDashboard();
+            } catch (error) {
+                showNotification('Failed to check low stock', 'error');
+            }
+        }
+
+        function sendLowStockAlert() {
+            checkAndSendLowStock();
+        }
+
+        // Add missing endpoint
+        async function sendWeeklySummaryEndpoint() {
+            const response = await fetch('/api/dashboard/send-weekly-summary', { method: 'POST' });
+            return response.json();
+        }
+
+        // Initialize
+        loadDashboard();
+        setInterval(loadDashboard, 30000);
+    </script>
+</body>
+</html>
